@@ -1,0 +1,150 @@
+version: "3.8"
+
+services:
+  # traefik service
+  traefik:
+    image: traefik:v2.11
+    command:
+      - "--providers.docker.swarmmode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      # enable Traefik dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    networks:
+      - net_public
+  
+  # node app service
+  node:
+    image: swarm/node-app:v2
+    environment:
+      VALKEY_HOST: valkey
+      LIST_KEY: swarm:entries
+      MAX_ITEMS: 5
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.node.rule=Host(`nodeapp.local`)"
+        - "traefik.http.services.node.loadbalancer.server.port=3000"
+    networks:
+      - net_public
+
+
+  # node writer service
+  app_writer:
+    image: swarm/node-writer:v1
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: none   # IMPORTANT
+    environment:
+      VALKEY_HOST: valkey
+      BATCH_SIZE: 5 # number of records to write in each batch
+      INTERVAL_MS: 1000 # 1 second
+      STOP_AFTER_MS: 600000  # 10 minute
+    networks:
+      - net_public
+
+    
+  # symfony service
+  symfony:
+    image: swarm/symfony-app:v0
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.symfony.rule=Host(`symfony.local`)"
+        - "traefik.http.services.symfony.loadbalancer.server.port=8000"
+    networks:
+      - net_public
+
+  # Valkey service (Redis fork)
+  valkey:
+    image: valkey/valkey:7
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - valkey_data:/data
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager    # keep Valkey in the manager node only
+    networks:
+      - net_public
+  
+  # Monitroing services
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   volumes:
+  #     - prometheus_data:/prometheus
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #   deploy:
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     labels:
+  #       - "traefik.enable=true"
+  #       - "traefik.http.routers.prometheus.rule=Host(`prometheus.local`)"
+  #       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+  #   networks:
+  #     - net_public
+
+  # grafana:
+  #   image: grafana/grafana:12.1
+  #   environment:
+  #     GF_SECURITY_ADMIN_PASSWORD: "admin"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   deploy:
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.role == manager
+  #     labels:
+  #       - "traefik.enable=true"
+  #       - "traefik.http.routers.grafana.rule=Host(`grafana.local`)"
+  #       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+  #   networks:
+  #     - net_public
+  
+  # advisor:
+  #   image: google/advisor:latest
+  #   environment:
+  #     PROMETHEUS_URL: http://prometheus:9090
+  #   deploy:
+  #     replicas: 1
+  #     restart_policy:
+  #       condition: on-failure
+  #     labels:
+  #       - "traefik.enable=true"
+  #       - "traefik.http.routers.advisor.rule=Host(`advisor.local`)"
+  #       - "traefik.http.services.advisor.loadbalancer.server.port=8080"
+  #   networks:
+  #     - net_public
+
+
+volumes:
+  valkey_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  net_public:
+    driver: overlay
+  # internal:
+  #   driver: overlay
+  #   internal: true

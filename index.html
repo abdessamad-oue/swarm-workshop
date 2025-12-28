@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Valkey Live Monitor</title>
+</head>
+<body>
+  <h2>Valkey Live Monitor</h2>
+  <pre id="output">Connecting...</pre>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    const socket = io("http://socket.local");
+
+    socket.on("snapshot", data => {
+      document.getElementById("output").textContent =
+        JSON.stringify(data, null, 2);
+    });
+
+    socket.on("update", data => {
+      document.getElementById("output").textContent =
+        JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
