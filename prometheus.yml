@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+
+  # --------------------
+  # Node Exporter (host metrics)
+  # --------------------
+  - job_name: 'node-exporter'
+    dns_sd_configs:
+      - names:
+          - 'tasks.demo_node-exporter'   # the Swarm service name
+        type: 'A'
+        port: 9100
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # --------------------
+  # cAdvisor (container metrics)
+  # --------------------
+  - job_name: 'cadvisor'
+    dns_sd_configs:
+      - names:
+          - 'tasks.demo_advisor'        # your cAdvisor service
+        type: 'A'
+        port: 8080
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance

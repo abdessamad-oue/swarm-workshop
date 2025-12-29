@@ -25,15 +25,22 @@ services:
   
   # node app service
   node:
-    image: swarm/node-app:v2
+    image: 192.168.56.101:5000/swarm/node-app:v2
     environment:
       VALKEY_HOST: valkey
       LIST_KEY: swarm:entries
       MAX_ITEMS: 5
     deploy:
       replicas: 2
+      update_config:
+        parallelism: 1       # number of containers to update at a time
+        delay: 10s           # delay between updating batches
+        order: start-first   # or stop-first
       restart_policy:
         condition: on-failure
+      placement:
+        constraints:
+          - node.labels.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.node.rule=Host(`nodeapp.local`)"
@@ -44,9 +51,12 @@ services:
 
   # node writer service
   app_writer:
-    image: swarm/node-writer:v1
+    image: 192.168.56.101:5000/swarm/node-writer:v1
     deploy:
       replicas: 2
+      placement:
+        constraints:
+          - node.labels.role == worker
       restart_policy:
         condition: none   # IMPORTANT
     environment:
@@ -60,9 +70,12 @@ services:
     
   # symfony service
   symfony:
-    image: swarm/symfony-app:v0
+    image: 192.168.56.101:5000/swarm/symfony-app:v0
     deploy:
-      replicas: 1
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.role == worker
       restart_policy:
         condition: on-failure
       labels:

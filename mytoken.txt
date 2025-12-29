@@ -1,1 +1,6 @@
+## local
 docker swarm join --token SWMTKN-1-3j2hkzpal656u8mnp42lkxoukrw5lo6bsa0wcm7una2jlgvff3-7xa5cesrl2r3z8z1tpxxjd98a 192.168.1.49:2377
+
+
+### vm local
+docker swarm join --token SWMTKN-1-0ptdycnvses92qynq1mb389tvy827hrwbw8and7jwwcpwq2duu-01llbv5d8cmfz4ln5sw6vxrwx 192.168.56.101:2377

@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   
-  # Monitroing services
+  # Monitoring services
 
   prometheus:
     image: prom/prometheus:latest
@@ -19,7 +19,7 @@ services:
         - "traefik.http.routers.prometheus.rule=Host(`prometheus.local`)"
         - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
     networks:
-      - net_public
+      - demo_net_public
 
   grafana:
     image: grafana/grafana:12.1
@@ -37,14 +37,15 @@ services:
         - "traefik.http.routers.grafana.rule=Host(`grafana.local`)"
         - "traefik.http.services.grafana.loadbalancer.server.port=3000"
     networks:
-      - net_public
+      - demo_net_public
   
+  # cAdvisor service : Docker container metrics (cpu, mem ... of each container )
   advisor:
-    image: google/advisor:latest
+    image: gcr.io/cadvisor/cadvisor
     environment:
       PROMETHEUS_URL: http://prometheus:9090
     deploy:
-      replicas: 1
+      mode: global
       restart_policy:
         condition: on-failure
       labels:
@@ -52,9 +53,37 @@ services:
         - "traefik.http.routers.advisor.rule=Host(`advisor.local`)"
         - "traefik.http.services.advisor.loadbalancer.server.port=8080"
     networks:
-      - net_public
-
+      - demo_net_public
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro 
+  
+  # Node Exporter service : host metrics (cpu, mem ... of the host)
+  node-exporter:
+    image: prom/node-exporter:latest
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+    networks:
+      - demo_net_public
+    ports:
+      - "9100:9100"   # optional, only if you want direct access
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
 
 volumes:
   prometheus_data:
   grafana_data:
+
+networks:
+  demo_net_public:
+    external: true
